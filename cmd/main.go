@@ -48,31 +48,19 @@ func main() {
 	fmt.Printf("store data \n")
 	categoryRepository := internal.NewCategoryRepository(internal.DB.Db)
 	brandRepository := internal.NewBrandRepository(internal.DB.Db)
-	// productRepository := internal.NewProductRepository(internal.DB.Db)
+	productRepository := internal.NewProductRepository(internal.DB.Db)
 	if err := categoryRepository.CreateBatch(filteredCategories);err!= nil {
 		log.Fatalf("error storing category: %v",err)
 	}
 	if err := brandRepository.CreateBatch(filteredbrands);err!= nil {
 		log.Fatalf("error storing brand: %v",err)
 	}
-	// if err := productRepository.CreateBatch(filteredProducts);err!= nil {
-	// 	log.Fatalf("error storing product: %v",err)
-	// }
+	if err := productRepository.CreateBatch(filteredProducts);err!= nil {
+		log.Fatalf("error storing product: %v",err)
+	}
 	fmt.Printf("stored Product %v \n", len(filteredProducts))
 	fmt.Printf("stored Brand %v \n", len(filteredbrands))
 	fmt.Printf("stored Category %v \n", len(filteredCategories))
-
-
-   var errProduct []internal.ProductEntity
-	for _, v := range filteredProducts {
-		if v.BrandId == 0 || v.CategoryId == 0 {
-			errProduct = append(errProduct, v)
-		}
-	}
-
-	for _, v := range errProduct {
-		fmt.Printf("%v \n", v)
-	}
 }
 
 func getCategoryFromXlsx(xlsx *excelize.File) []internal.CategoryEntity {
