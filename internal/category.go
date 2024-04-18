@@ -35,3 +35,15 @@ func (c *categoryRepository) FindAll() (*[]CategoryEntity, error) {
 	}
 	return categories, nil
 }
+
+func (p *categoryRepository) CreateBatch(categories []CategoryEntity) error {
+	err := p.db.Transaction(func(tx *gorm.DB) error {
+		tx.CreateInBatches(categories, 1000)
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+

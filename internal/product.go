@@ -36,6 +36,14 @@ func NewProductRepository(db *gorm.DB) *productRepository {
 	}
 }
 
+func (c *productRepository) FindAll() (*[]ProductEntity, error) {
+	products := new([]ProductEntity)
+	if err := c.db.Find(&products).Error; err != nil {
+		return nil, err
+	}
+	return products, nil
+}
+
 func (p *productRepository) CreateBatch(products []ProductEntity) error {
 	err := p.db.Transaction(func(tx *gorm.DB) error {
 		tx.CreateInBatches(products, 1000)
