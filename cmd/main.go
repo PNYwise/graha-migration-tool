@@ -12,7 +12,10 @@ import (
 )
 
 func main() {
-
+	/*
+	* Open DB connection
+	*
+	 */
 	internal.ConnectDb()
 	defer func() {
 		if err := internal.CloseDb(); err != nil {
@@ -24,15 +27,28 @@ func main() {
 		log.Fatalf("Error ping database connection: %v", err)
 	}
 
+	/*
+	* Open File Xlsx
+	*
+	 */
 	xlsx, err := excelize.OpenFile("./MProduct1.xlsx")
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
+
+	/*
+	* Init repository
+	*
+	 */
 	categoryRepository := internal.NewCategoryRepository(internal.DB.Db)
 	brandRepository := internal.NewBrandRepository(internal.DB.Db)
 	productRepository := internal.NewProductRepository(internal.DB.Db)
 
+	/*
+	* Get Brand, category, product from database to check existing data
+	*
+	 */
 	fmt.Printf("Get data from DB \n")
 	dbCategories, err := categoryRepository.FindAll()
 	if err != nil {
@@ -47,16 +63,28 @@ func main() {
 		log.Fatalf("Err get products: %v", err)
 	}
 
+	/*
+	* Get Brand, category from xlsx
+	*
+	 */
 	fmt.Printf("Get data from xls \n")
 	xlsxCategories := getCategoryFromXlsx(xlsx)
 	xlsxBrands := getBrandFromXlsx(xlsx)
 
+	/*
+	* filter Brand, category from xlsx with existing data inside database
+	* ensure the data have unique code
+	*
+	 */
 	fmt.Printf("filter data \n")
 	filteredbrands := helper.FilterBrandsNotInByCode(xlsxBrands, *dbBrands)
 	filteredCategories := helper.FilterCategoriesNotInByCode(xlsxCategories, *dbCategories)
 
+	/*
+	* store Brand, category data
+	*
+	 */
 	fmt.Printf("store data \n")
-
 	if err := categoryRepository.CreateBatch(filteredCategories); err != nil {
 		log.Fatalf("error storing category: %v", err)
 	}
@@ -66,6 +94,10 @@ func main() {
 	fmt.Printf("stored Brand %v \n", len(filteredbrands))
 	fmt.Printf("stored Category %v \n", len(filteredCategories))
 
+	/*
+	* get new Brand, category data from DB
+	*
+	 */
 	dbCategories, err = categoryRepository.FindAll()
 	if err != nil {
 		log.Fatalf("Err get brands: %v", err)
@@ -74,8 +106,24 @@ func main() {
 	if err != nil {
 		log.Fatalf("Err get brands: %v", err)
 	}
+
+	/*
+	* read Product from xlsx and maping
+	*
+	 */
 	xlsxProducts := getProductFromXlsx(xlsx, *dbBrands, *dbCategories)
+
+	/*
+	* filter product from xlsx with existing data inside database
+	* ensure the data have unique code
+	*
+	 */
 	filteredProducts := helper.FilterProductsNotInByCode(xlsxProducts, *dbProducts)
+
+	/*
+	* store product
+	*
+	 */
 	if err := productRepository.CreateBatch(filteredProducts); err != nil {
 		log.Fatalf("error storing product: %v", err)
 	}
