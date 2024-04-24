@@ -18,11 +18,16 @@ func (CategoryEntity) TableName() string {
 	return "categories"
 }
 
+type ICategoryRepository interface {
+	FindAll() (*[]CategoryEntity, error)
+	CreateBatch(categories []CategoryEntity) error
+}
+
 type categoryRepository struct {
 	db *gorm.DB
 }
 
-func NewCategoryRepository(db *gorm.DB) *categoryRepository {
+func NewCategoryRepository(db *gorm.DB) ICategoryRepository {
 	return &categoryRepository{
 		db,
 	}
@@ -46,4 +51,3 @@ func (p *categoryRepository) CreateBatch(categories []CategoryEntity) error {
 	}
 	return nil
 }
-

@@ -26,11 +26,16 @@ func (ProductEntity) TableName() string {
 	return "products"
 }
 
+type IProductRepository interface {
+	FindAll() (*[]ProductEntity, error)
+	CreateBatch(products []ProductEntity) error
+}
+
 type productRepository struct {
 	db *gorm.DB
 }
 
-func NewProductRepository(db *gorm.DB) *productRepository {
+func NewProductRepository(db *gorm.DB) IProductRepository {
 	return &productRepository{
 		db,
 	}

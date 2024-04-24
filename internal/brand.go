@@ -18,11 +18,16 @@ func (BrandEntity) TableName() string {
 	return "brands"
 }
 
+type IBrandRepository interface {
+	FindAll() (*[]BrandEntity, error)
+	CreateBatch(brands []BrandEntity) error
+}
+
 type brandRepository struct {
 	db *gorm.DB
 }
 
-func NewBrandRepository(db *gorm.DB) *brandRepository {
+func NewBrandRepository(db *gorm.DB) IBrandRepository {
 	return &brandRepository{
 		db,
 	}
@@ -46,4 +51,3 @@ func (p *brandRepository) CreateBatch(brands []BrandEntity) error {
 	}
 	return nil
 }
-
