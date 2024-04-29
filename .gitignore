@@ -1,4 +1,4 @@
 conf/development.yaml
 conf/production.yaml
 .vscode
-MProduct1.xlsx
+resources/*

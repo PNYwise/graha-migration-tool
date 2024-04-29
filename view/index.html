@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <h1>Select a file to upload:</h1>
+    <form action="/upload" method="POST" enctype="multipart/form-data">
+        <input type="file" name="file">
+        <br>
+        <br>
+        <label>
+            <input type="radio" name="option" value="product-brand-category"> Migrate Product,Brand,Category
+        </label>
+        <br>
+        <label>
+            <input type="radio" name="option" value="product-stock"> Migrate product Stock
+        </label>
+        <br>
+        <button type="submit">Submit</button>
+    </form>
+</body>
+
+</html>
