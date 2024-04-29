@@ -3,14 +3,16 @@ package services
 import (
 	"fmt"
 	"log"
+	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/360EntSecGroup-Skylar/excelize"
 	"github.com/PNYwise/graha-migration-tool/internal"
 	"github.com/PNYwise/graha-migration-tool/internal/helper"
 )
 
-type IProductMigrationService interface{
+type IProductMigrationService interface {
 	Process(fileName string)
 }
 
@@ -33,7 +35,7 @@ func (p *productMigrationService) Process(fileName string) {
 	* Open File Xlsx
 	*
 	 */
-	xlsx, err := excelize.OpenFile(fileName)
+	xlsx, err := excelize.OpenFile("./resources/" + fileName)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -62,8 +64,8 @@ func (p *productMigrationService) Process(fileName string) {
 	 *
 	 */
 	fmt.Printf("Get data from xls \n")
-	xlsxCategories := getCategoryFromXlsx(xlsx)
-	xlsxBrands := getBrandFromXlsx(xlsx)
+	xlsxCategories := p.getCategoryFromXlsx(xlsx)
+	xlsxBrands := p.getBrandFromXlsx(xlsx)
 
 	/*
 	 * filter Brand, category from xlsx with existing data inside database
@@ -105,7 +107,7 @@ func (p *productMigrationService) Process(fileName string) {
 	 * read Product from xlsx and maping
 	 *
 	 */
-	xlsxProducts := getProductFromXlsx(xlsx, *dbBrands, *dbCategories)
+	xlsxProducts := p.getProductFromXlsx(xlsx, *dbBrands, *dbCategories)
 
 	/*
 	 * filter product from xlsx with existing data inside database
@@ -124,7 +126,7 @@ func (p *productMigrationService) Process(fileName string) {
 	fmt.Printf("stored Product %v \n", len(filteredProducts))
 }
 
-func getCategoryFromXlsx(xlsx *excelize.File) []internal.CategoryEntity {
+func (p *productMigrationService) getCategoryFromXlsx(xlsx *excelize.File) []internal.CategoryEntity {
 	categorySheet := "category"
 	// Get all the rows in the Category.
 	rows := xlsx.GetRows(categorySheet)
@@ -141,7 +143,7 @@ func getCategoryFromXlsx(xlsx *excelize.File) []internal.CategoryEntity {
 	return categories
 }
 
-func getBrandFromXlsx(xlsx *excelize.File) []internal.BrandEntity {
+func (p *productMigrationService) getBrandFromXlsx(xlsx *excelize.File) []internal.BrandEntity {
 	brandSheet := "brand"
 	// Get all the rows in the Category.
 	rows := xlsx.GetRows(brandSheet)
@@ -158,7 +160,7 @@ func getBrandFromXlsx(xlsx *excelize.File) []internal.BrandEntity {
 	return brands
 }
 
-func getProductFromXlsx(xlsx *excelize.File, brands []internal.BrandEntity, categories []internal.CategoryEntity) []internal.ProductEntity {
+func (p *productMigrationService) getProductFromXlsx(xlsx *excelize.File, brands []internal.BrandEntity, categories []internal.CategoryEntity) []internal.ProductEntity {
 	productSheet := "product"
 	// Get all the rows in the productSheet.
 	rows := xlsx.GetRows(productSheet)
@@ -189,9 +191,13 @@ func getProductFromXlsx(xlsx *excelize.File, brands []internal.BrandEntity, cate
 			xlsxCategoryCode := row[9]
 			brand := helper.Find(brands, func(v internal.BrandEntity) bool { return v.Code == xlsxBrandCode })
 			category := helper.Find(categories, func(v internal.CategoryEntity) bool { return v.Code == xlsxCategoryCode })
+
+			re := regexp.MustCompile(`\s+`)
+			name := strings.TrimSpace(re.ReplaceAllString(row[1], " "))
+
 			product := internal.ProductEntity{
 				Code:       row[0],
-				Name:       row[1],
+				Name:       name,
 				Min:        min,
 				BuyPrice:   uint(buyPrice),
 				SellPrice:  uint(sellPrice),

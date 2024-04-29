@@ -20,6 +20,9 @@ type ProductEntity struct {
 	UomId      uint   `gorm:"not null"`
 	CategoryId uint   `gorm:"not null"`
 	BrandId    uint   `gorm:"not null"`
+	StockGD    int    `gorm:"-"`
+	StockET    int    `gorm:"-"`
+	Total      int    `gorm:"-"`
 }
 
 func (ProductEntity) TableName() string {
@@ -29,6 +32,7 @@ func (ProductEntity) TableName() string {
 type IProductRepository interface {
 	FindAll() (*[]ProductEntity, error)
 	CreateBatch(products []ProductEntity) error
+	FindByNames(names []string) (*[]ProductEntity, error)
 }
 
 type productRepository struct {
@@ -44,6 +48,14 @@ func NewProductRepository(db *gorm.DB) IProductRepository {
 func (c *productRepository) FindAll() (*[]ProductEntity, error) {
 	products := new([]ProductEntity)
 	if err := c.db.Find(&products).Error; err != nil {
+		return nil, err
+	}
+	return products, nil
+}
+
+func (c *productRepository) FindByNames(names []string) (*[]ProductEntity, error) {
+	products := new([]ProductEntity)
+	if err := c.db.Where("name IN (?)", names).Find(&products).Error; err != nil {
 		return nil, err
 	}
 	return products, nil

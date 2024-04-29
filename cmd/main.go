@@ -60,7 +60,8 @@ func main() {
 	productRepo := internal.NewProductRepository(internal.DB.Db)
 
 	productMigrationService := services.NewProductMigrationService(categoryRepo, brandRepo, productRepo)
-	handler := handler.NewHandler(productMigrationService)
+	productStockService := services.NewProductStockService(productRepo)
+	handler := handler.NewHandler(productMigrationService, productStockService)
 
 	app.Get("/", renderTemplate)
 	app.Post("/upload", handler.Execute)

@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/PNYwise/graha-migration-tool/internal/helper"
@@ -9,39 +8,36 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-
 type Handler struct {
 	productMigrationService services.IProductMigrationService
+	productStockService     services.IProductStockService
 }
 
-func NewHandler(productMigrationService services.IProductMigrationService) *Handler {
-	return &Handler{productMigrationService}
+func NewHandler(productMigrationService services.IProductMigrationService, productStockService services.IProductStockService) *Handler {
+	return &Handler{productMigrationService, productStockService}
 }
 
 func (h *Handler) Execute(c *fiber.Ctx) error {
 	// Parse form data
 	file, err := c.FormFile("file")
 	if err != nil {
-		log.Printf("errors get file: %v \n",err)
+		log.Printf("errors get file: %v \n", err)
 		return err
 	}
-	
+
 	helper.DeleteFiles("./resources")
 
 	// Save file
 	if err := c.SaveFile(file, "./resources/"+file.Filename); err != nil {
-		log.Printf("errors save file: %v \n",err)
+		log.Printf("errors save file: %v \n", err)
 		return err
 	}
-	fmt.Printf("%s \n", file.Filename)
-
 	option := c.FormValue("option")
 	switch option {
 	case "product-brand-category":
-		fmt.Printf("product-brand-category \n")
-		// go h.productMigrationService.Process(file.Filename)
+		go h.productMigrationService.Process(file.Filename)
 	case "product-stock":
-		fmt.Printf("product-stock \n")
+		go h.productStockService.Process(file.Filename)
 	}
 	return c.Redirect("/")
 }
