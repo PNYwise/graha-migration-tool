@@ -14,13 +14,15 @@ type IProductStockService interface {
 }
 
 type productStockService struct {
-	productRepository internal.IProductRepository
+	productRepository  internal.IProductRepository
+	locationRepository internal.ILocationRepository
 }
 
 func NewProductStockService(
 	producRepository internal.IProductRepository,
+	locationRepository internal.ILocationRepository,
 ) IProductMigrationService {
-	return &productStockService{producRepository}
+	return &productStockService{producRepository, locationRepository}
 }
 
 func (p *productStockService) Process(fileName string) {
@@ -44,12 +46,47 @@ func (p *productStockService) Process(fileName string) {
 		fmt.Println(err)
 		return
 	}
+
+	dbLocations, err := p.locationRepository.FindAll()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 	for i := 0; i < len(xlsxProducts); i++ {
 		product := helper.Find(*dbProducts, func(dbProduct internal.ProductEntity) bool {
 			return xlsxProducts[i].Name == dbProduct.Name
 		})
-		xlsxProducts[i].Code = product.Code
+		if product != nil {
+			xlsxProducts[i].ID = product.ID
+			xlsxProducts[i].Name = product.Name
+			xlsxProducts[i].Code = product.Code
+		}
 	}
+
+	in := helper.FilterProductsInByCode(xlsxProducts, *dbProducts)
+
+	var stocks []internal.StockEntity
+	for _, v := range in {
+		dbEt := helper.Find(*dbLocations, func(dbLocation internal.LocationEntity) bool {
+			return dbLocation.Alias == "ET"
+		})
+		dbGd := helper.Find(*dbLocations, func(dbLocation internal.LocationEntity) bool {
+			return dbLocation.Alias == "GD"
+		})
+		stockDistributions := &[]internal.StockDistributionEntity{
+			{Qty: v.StockET, LocationId: dbEt.ID},
+			{Qty: v.StockGD, LocationId: dbGd.ID},
+		}
+
+		stock := internal.StockEntity{
+			Qty:                v.Total,
+			QtyTransaction:     v.Total,
+			ProductId:          v.ID,
+			StockDistributions: stockDistributions,
+		}
+		stocks = append(stocks, stock)
+	}
+	fmt.Printf("stock len %d \n", len(stocks))
 
 	notIn := helper.FilterProductsNotInByCode(xlsxProducts, *dbProducts)
 	if len(notIn) > 0 {
@@ -57,6 +94,7 @@ func (p *productStockService) Process(fileName string) {
 			fmt.Printf("%v \n", v)
 		}
 	}
+	fmt.Printf("in len %d \n", len(in))
 	fmt.Printf("not in len %d \n", len(notIn))
 	fmt.Printf("db data len %d \n", len(*dbProducts))
 	fmt.Printf("xlsx data len %d \n", len(xlsxProducts))

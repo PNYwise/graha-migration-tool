@@ -58,9 +58,10 @@ func main() {
 	categoryRepo := internal.NewCategoryRepository(internal.DB.Db)
 	brandRepo := internal.NewBrandRepository(internal.DB.Db)
 	productRepo := internal.NewProductRepository(internal.DB.Db)
+	locationRepo := internal.NewLocationRepository(internal.DB.Db)
 
 	productMigrationService := services.NewProductMigrationService(categoryRepo, brandRepo, productRepo)
-	productStockService := services.NewProductStockService(productRepo)
+	productStockService := services.NewProductStockService(productRepo, locationRepo)
 	handler := handler.NewHandler(productMigrationService, productStockService)
 
 	app.Get("/", renderTemplate)
