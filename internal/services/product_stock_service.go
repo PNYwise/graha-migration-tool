@@ -16,13 +16,15 @@ type IProductStockService interface {
 type productStockService struct {
 	productRepository  internal.IProductRepository
 	locationRepository internal.ILocationRepository
+	stockRepository    internal.IStockRepository
 }
 
 func NewProductStockService(
 	producRepository internal.IProductRepository,
 	locationRepository internal.ILocationRepository,
+	stockRepository internal.IStockRepository,
 ) IProductMigrationService {
-	return &productStockService{producRepository, locationRepository}
+	return &productStockService{producRepository, locationRepository, stockRepository}
 }
 
 func (p *productStockService) Process(fileName string) {
@@ -52,6 +54,17 @@ func (p *productStockService) Process(fileName string) {
 		fmt.Println(err)
 		return
 	}
+	dbEt := helper.Find(*dbLocations, func(dbLocation internal.LocationEntity) bool {
+		return dbLocation.Alias == "ET"
+	})
+	dbGd := helper.Find(*dbLocations, func(dbLocation internal.LocationEntity) bool {
+		return dbLocation.Alias == "GD"
+	})
+	if dbEt == nil || dbGd == nil {
+		fmt.Println("et/gd are not found")
+		return
+	}
+
 	for i := 0; i < len(xlsxProducts); i++ {
 		product := helper.Find(*dbProducts, func(dbProduct internal.ProductEntity) bool {
 			return xlsxProducts[i].Name == dbProduct.Name
@@ -67,26 +80,30 @@ func (p *productStockService) Process(fileName string) {
 
 	var stocks []internal.StockEntity
 	for _, v := range in {
-		dbEt := helper.Find(*dbLocations, func(dbLocation internal.LocationEntity) bool {
-			return dbLocation.Alias == "ET"
+		exist := helper.Find(stocks, func(stock internal.StockEntity) bool {
+			return stock.ProductId == v.ID
 		})
-		dbGd := helper.Find(*dbLocations, func(dbLocation internal.LocationEntity) bool {
-			return dbLocation.Alias == "GD"
-		})
-		stockDistributions := &[]internal.StockDistributionEntity{
-			{Qty: v.StockET, LocationId: dbEt.ID},
-			{Qty: v.StockGD, LocationId: dbGd.ID},
+		if exist == nil {
+			stockDistributions := &[]internal.StockDistributionEntity{
+				{Qty: v.StockET, LocationId: dbEt.ID},
+				{Qty: v.StockGD, LocationId: dbGd.ID},
+			}
+			stock := internal.StockEntity{
+				Qty:                v.Total,
+				QtyTransaction:     v.Total,
+				ProductId:          v.ID,
+				StockDistributions: stockDistributions,
+			}
+			stocks = append(stocks, stock)
 		}
-
-		stock := internal.StockEntity{
-			Qty:                v.Total,
-			QtyTransaction:     v.Total,
-			ProductId:          v.ID,
-			StockDistributions: stockDistributions,
-		}
-		stocks = append(stocks, stock)
 	}
-	fmt.Printf("stock len %d \n", len(stocks))
+
+	if len(stocks) > 0 {
+		if err := p.stockRepository.CreateBatch(stocks); err != nil {
+			fmt.Printf("err storing data: %v \n", err)
+			return
+		}
+	}
 
 	notIn := helper.FilterProductsNotInByCode(xlsxProducts, *dbProducts)
 	if len(notIn) > 0 {
@@ -94,6 +111,7 @@ func (p *productStockService) Process(fileName string) {
 			fmt.Printf("%v \n", v)
 		}
 	}
+	fmt.Printf("stock len %d \n", len(stocks))
 	fmt.Printf("in len %d \n", len(in))
 	fmt.Printf("not in len %d \n", len(notIn))
 	fmt.Printf("db data len %d \n", len(*dbProducts))

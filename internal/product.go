@@ -69,7 +69,7 @@ func (c *productRepository) FindByNames(names []string) (*[]ProductEntity, error
 
 func (p *productRepository) CreateBatch(products []ProductEntity) error {
 	err := p.db.Transaction(func(tx *gorm.DB) error {
-		tx.CreateInBatches(products, 1000)
+		tx.CreateInBatches(products, 10000)
 		return nil
 	})
 	if err != nil {
