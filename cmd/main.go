@@ -13,10 +13,10 @@ import (
 )
 
 func main() {
-	/*
-	* Open DB connection
-	*
-	 */
+	/**
+	 * Open DB connection
+	 *
+	**/
 	internal.ConnectDb()
 	defer func() {
 		if err := internal.CloseDb(); err != nil {
@@ -51,20 +51,29 @@ func main() {
 		return c.Send(buffer.Bytes())
 	}
 
-	/*
-	* Init
-	*
-	 */
+	/**
+	 * Init
+	 *
+	**/
+
+	// repository
 	categoryRepo := internal.NewCategoryRepository(internal.DB.Db)
 	brandRepo := internal.NewBrandRepository(internal.DB.Db)
 	productRepo := internal.NewProductRepository(internal.DB.Db)
 	locationRepo := internal.NewLocationRepository(internal.DB.Db)
 	stockRepo := internal.NewStockRepository(internal.DB.Db)
+	supplierRepo := internal.NewSupplierRepository(internal.DB.Db)
+	_ = supplierRepo
 
+	// service
 	productMigrationService := services.NewProductMigrationService(categoryRepo, brandRepo, productRepo)
 	productStockService := services.NewProductStockService(productRepo, locationRepo, stockRepo)
-	handler := handler.NewHandler(productMigrationService, productStockService)
+	consignmentService := services.NewConsignmentService(productRepo, locationRepo, supplierRepo)
 
+	// handler
+	handler := handler.NewHandler(productMigrationService, productStockService, consignmentService)
+
+	// routes
 	app.Get("/", renderTemplate)
 	app.Post("/upload", handler.Execute)
 

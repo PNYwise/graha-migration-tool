@@ -14,7 +14,7 @@ type StockEntity struct {
 	Qty            int
 	ProductId      uint `gorm:"not null"`
 
-	StockDistributions *[]StockDistributionEntity `gorm:"-"`
+	StockDistributions *[]StockDistributionEntity `gorm:"foreignKey:StockId"`
 }
 
 func (StockEntity) TableName() string {
@@ -38,12 +38,13 @@ type StockMovementEntity struct {
 	ID        uint `gorm:"primarykey"`
 	CreatedAt time.Time
 
-	Code            string `gorm:"not null"`
-	Qty             int    `gorm:"not null"`
-	QtyBeforeUpdate int    `gorm:"not null"`
-	QtyAfterUpdate  int    `gorm:"not null"`
-	ProductId       uint   `gorm:"not null"`
-	LocationId      uint   `gorm:"not null"`
+	Code                   string `gorm:"not null"`
+	Qty                    int    `gorm:"not null"`
+	QtyBeforeUpdate        int    `gorm:"not null"`
+	QtyAfterUpdate         int    `gorm:"not null"`
+	ProductId              uint   `gorm:"not null"`
+	LocationId             uint   `gorm:"not null"`
+	PurchaseReceivedItemId uint
 }
 
 func (StockMovementEntity) TableName() string {
@@ -63,6 +64,7 @@ func NewStockRepository(db *gorm.DB) IStockRepository {
 		db,
 	}
 }
+
 func (s *stockRepository) CreateBatch(stocks []StockEntity) error {
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.CreateInBatches(&stocks, 500).Error; err != nil {

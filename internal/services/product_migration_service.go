@@ -190,7 +190,16 @@ func (p *productMigrationService) getProductFromXlsx(xlsx *excelize.File, brands
 			xlsxBrandCode := row[11]
 			xlsxCategoryCode := row[9]
 			brand := helper.Find(brands, func(v internal.BrandEntity) bool { return v.Code == xlsxBrandCode })
+			var brandId uint
+			if brand != nil {
+				brandId = brand.ID 	
+			}
 			category := helper.Find(categories, func(v internal.CategoryEntity) bool { return v.Code == xlsxCategoryCode })
+
+			var categoryId uint
+			if category != nil {
+				categoryId = category.ID 	
+			}
 
 			re := regexp.MustCompile(`\s+`)
 			name := strings.TrimSpace(re.ReplaceAllString(row[1], " "))
@@ -204,8 +213,8 @@ func (p *productMigrationService) getProductFromXlsx(xlsx *excelize.File, brands
 				Active:     active,
 				Type:       row[6],
 				UomId:      1,
-				BrandId:    brand.ID,
-				CategoryId: category.ID,
+				BrandId:    brandId,
+				CategoryId: categoryId,
 			}
 			products = append(products, product)
 		}

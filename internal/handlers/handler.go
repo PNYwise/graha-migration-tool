@@ -11,10 +11,15 @@ import (
 type Handler struct {
 	productMigrationService services.IProductMigrationService
 	productStockService     services.IProductStockService
+	consignmentService      services.IConsignmentService
 }
 
-func NewHandler(productMigrationService services.IProductMigrationService, productStockService services.IProductStockService) *Handler {
-	return &Handler{productMigrationService, productStockService}
+func NewHandler(
+	productMigrationService services.IProductMigrationService,
+	productStockService services.IProductStockService,
+	consignmentService services.IConsignmentService,
+) *Handler {
+	return &Handler{productMigrationService, productStockService, consignmentService}
 }
 
 func (h *Handler) Execute(c *fiber.Ctx) error {
@@ -38,6 +43,8 @@ func (h *Handler) Execute(c *fiber.Ctx) error {
 		go h.productMigrationService.Process(file.Filename)
 	case "product-stock":
 		go h.productStockService.Process(file.Filename)
+	case "product-consignment":
+		go h.consignmentService.Process(file.Filename)
 	}
 	return c.Redirect("/")
 }

@@ -20,6 +20,7 @@ func (LocationEntity) TableName() string {
 
 type ILocationRepository interface {
 	FindAll() (*[]LocationEntity, error)
+	FindOneByAlias(alias string) (*LocationEntity, error)
 }
 
 type locationRepository struct {
@@ -38,4 +39,12 @@ func (l *locationRepository) FindAll() (*[]LocationEntity, error) {
 		return nil, err
 	}
 	return locations, nil
+}
+
+func (l *locationRepository) FindOneByAlias(alias string) (*LocationEntity, error) {
+	location := new(LocationEntity)
+	if err := l.db.Where(&LocationEntity{Alias: alias}).First(&location).Error; err != nil {
+		return nil, err
+	}
+	return location, nil
 }
