@@ -20,8 +20,8 @@ type ProductEntity struct {
 	UomId          uint                   `gorm:"not null"`
 	CategoryId     uint                   `gorm:"not null"`
 	BrandId        uint                   `gorm:"not null"`
-	// Stock          *StockEntity           `gorm:"foreignKey:ProductId"`
-	// StockMovements *[]StockMovementEntity `gorm:"foreignKey:ProductId"`
+	Stock          *StockEntity           `gorm:"foreignKey:ProductId"`
+	StockMovements *[]StockMovementEntity `gorm:"foreignKey:ProductId"`
 	StockGD        int                    `gorm:"-"`
 	StockET        int                    `gorm:"-"`
 	Total          int                    `gorm:"-"`
