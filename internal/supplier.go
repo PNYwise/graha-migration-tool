@@ -10,12 +10,13 @@ type SupplierEntity struct {
 	ID        uint `gorm:"primarykey"`
 	CreatedAt time.Time
 
-	Code string `gorm:"unique;not null"`
-	Name string `gorm:"not null"`
+	Code     string           `gorm:"unique;not null"`
+	Name     string           `gorm:"not null"`
+	Products *[]ProductEntity `gorm:"-"`
 }
 
 type ISupplierRepository interface {
-	FindManyByCode(codes []string) (*[]SupplierEntity, error)
+	FindByCodes(codes []string) (*[]SupplierEntity, error)
 }
 
 type supplierRepository struct {
@@ -32,7 +33,7 @@ func (SupplierEntity) TableName() string {
 	return "suppliers"
 }
 
-func (s *supplierRepository) FindManyByCode(codes []string) (*[]SupplierEntity, error) {
+func (s *supplierRepository) FindByCodes(codes []string) (*[]SupplierEntity, error) {
 	suppliers := new([]SupplierEntity)
 	if err := s.db.Where("code IN (?)", codes).Find(&suppliers).Error; err != nil {
 		return nil, err

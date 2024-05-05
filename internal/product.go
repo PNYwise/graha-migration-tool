@@ -25,6 +25,7 @@ type ProductEntity struct {
 	StockGD        int                    `gorm:"-"`
 	StockET        int                    `gorm:"-"`
 	Total          int                    `gorm:"-"`
+	SupplierCode   string                 `gorm:"-"`
 }
 
 func (ProductEntity) TableName() string {
