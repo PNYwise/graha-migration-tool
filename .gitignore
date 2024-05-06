@@ -2,3 +2,4 @@ conf/development.yaml
 conf/production.yaml
 .vscode
 resources/*
+cmd/main
