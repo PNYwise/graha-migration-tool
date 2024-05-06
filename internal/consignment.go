@@ -13,11 +13,11 @@ type ConsignmentEntity struct {
 	PpnInPercent         int                      `gorm:"not null"`
 	PpnInValue           int                      `gorm:"not null"`
 	Total                int                      `gorm:"not null"`
+	TotalIncludingPpn    int                      `gorm:"not null"`
+	TotalNotIncludingPpn int                      `gorm:"not null"`
 	PurchaseReceivedId   uint                     `gorm:"not null"`
 	SupplierId           uint                     `gorm:"not null"`
-	TotalIncludingPpn    uint                     `gorm:"not null"`
-	TotalNotIncludingPpn uint                     `gorm:"not null"`
-	ConsignmentItems     *[]ConsignmentItemEntity `gorm:"foreignKey:ConsignmentId"`
+	ConsignmentItems     *[]ConsignmentItemEntity `gorm:"-"`
 	TaxId                uint
 	CreatedBy            int
 }

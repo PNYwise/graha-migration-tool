@@ -46,12 +46,21 @@ func (c *consignmentService) Process(fileName string) {
 	xlsxProducts := c.getProductFromXlsx(xlsx)
 
 	//get location
-	location, err := c.locationRepository.FindOneByAlias("ET")
+	dbLocations, err := c.locationRepository.FindAll()
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	_ = location
+	dbEt := helper.Find(*dbLocations, func(dbLocation internal.LocationEntity) bool {
+		return dbLocation.Alias == "ET"
+	})
+	dbGd := helper.Find(*dbLocations, func(dbLocation internal.LocationEntity) bool {
+		return dbLocation.Alias == "GD"
+	})
+	if dbEt == nil || dbGd == nil {
+		fmt.Println("et/gd are not found")
+		return
+	}
 
 	var productCodes []string
 	var supplierCodes []string
@@ -82,7 +91,60 @@ func (c *consignmentService) Process(fileName string) {
 		})
 		if dbProduct == nil {
 			notfoundProductCodes = append(notfoundProductCodes, xlsxProduct.Code)
+		} else {
+			dbProduct.StockET = xlsxProduct.StockET
 		}
+
+		var stock *internal.StockEntity
+		if dbProduct.Stock != nil {
+			stock = dbProduct.Stock
+			if stock.StockDistributions != nil {
+				stockDistributions := stock.StockDistributions
+				etStockDistribution := helper.Find(*stockDistributions, func(stockDistribution internal.StockDistributionEntity) bool {
+					return stockDistribution.LocationId == dbEt.ID
+				})
+				if etStockDistribution != nil {
+					etStockDistribution.Qty = xlsxProduct.StockET
+				} else {
+					stockDistribution := internal.StockDistributionEntity{
+						StockId:    stock.ID,
+						LocationId: dbEt.ID,
+						Qty:        xlsxProduct.StockET,
+					}
+					*stockDistributions = append(*stockDistributions, stockDistribution)
+
+				}
+				gdStockDistribution := helper.Find(*stockDistributions, func(stockDistribution internal.StockDistributionEntity) bool {
+					return stockDistribution.LocationId == dbGd.ID
+				})
+				if gdStockDistribution != nil {
+					gdStockDistribution.Qty = 0
+				} else {
+					stockDistribution := internal.StockDistributionEntity{
+						StockId:    stock.ID,
+						LocationId: dbGd.ID,
+						Qty:        0,
+					}
+					*stockDistributions = append(*stockDistributions, stockDistribution)
+				}
+				stock.StockDistributions = stockDistributions
+			}
+			stock.Qty = xlsxProduct.StockET
+			stock.QtyTransaction = xlsxProduct.StockET
+		} else {
+			stockDistributions := []internal.StockDistributionEntity{
+				{LocationId: dbEt.ID, Qty: xlsxProduct.StockET},
+				{LocationId: dbGd.ID, Qty: 0},
+			}
+			stock = &internal.StockEntity{
+				QtyTransaction:     xlsxProduct.StockET,
+				Qty:                xlsxProduct.StockET,
+				ProductId:          dbProduct.ID,
+				StockDistributions: &stockDistributions,
+			}
+		}
+		dbProduct.Stock = stock
+
 		dbSupplier := helper.Find(*dbSuppliers, func(dbSupplier internal.SupplierEntity) bool {
 			return dbSupplier.Code == xlsxProduct.SupplierCode
 		})
@@ -124,11 +186,11 @@ func (c *consignmentService) Process(fileName string) {
 			purchaseReceivedItems = append(purchaseReceivedItems, purchaseReceivedItem)
 		}
 		purchaseReceived := internal.PurchaseReceivedEntity{
-			Code:                   "ET/CN20240503" + helper.PadStart(strconv.Itoa(i+1), "0", 4),
-			Date:                   "2024-05-03",
-			Note:                   "-",
+			Code:                   "ET/CN20240507" + helper.PadStart(strconv.Itoa(i+1), "0", 4),
+			Date:                   "2024-05-07",
+			Note:                   "Data Inject",
 			IsConsignmentConfirmed: true,
-			LocationId:             location.ID,
+			LocationId:             dbEt.ID,
 			SupplierId:             mappedSupplier.ID,
 			CreatedBy:              1,
 			PurchaseReceivedItems:  &purchaseReceivedItems,
@@ -159,14 +221,14 @@ func (p *consignmentService) getProductFromXlsx(xlsx *excelize.File) []internal.
 	var products []internal.ProductEntity
 	for i, row := range rows {
 		if i > 0 {
-			stock, err := strconv.Atoi(row[2])
+			stock, err := strconv.ParseFloat(row[2], 64)
 			if err != nil {
+				fmt.Printf("%s, %s \n", row[1], row[2])
 				panic(err)
 			}
 			product := internal.ProductEntity{
-				Code:         row[0],
-				Name:         row[1],
-				StockET:      stock,
+				Code:         row[1],
+				StockET:      int(stock),
 				SupplierCode: row[3],
 			}
 			products = append(products, product)
