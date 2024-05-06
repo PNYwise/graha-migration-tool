@@ -2,7 +2,6 @@ package internal
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -176,7 +175,6 @@ func (p *purchaseReceivedRepository) CreateBatch(purchaseReceiveds []PurchaseRec
 								LocationId:             etLoc.ID,
 								PurchaseReceivedItemId: &purchaseReceivedItemId,
 							}
-							fmt.Printf("1 %v \n", etStockMovement)
 							mappedStockMovements = append(mappedStockMovements, *etStockMovement)
 						}
 						gdStockMovement := find(stockMovements, func(stockMovement StockMovementEntity) bool {
@@ -197,15 +195,12 @@ func (p *purchaseReceivedRepository) CreateBatch(purchaseReceiveds []PurchaseRec
 							LocationId:             etLoc.ID,
 							PurchaseReceivedItemId: &purchaseReceivedItemId,
 						}
-						fmt.Printf("2 %v \n", etStockMovement)
 						mappedStockMovements = append(mappedStockMovements, etStockMovement)
 					}
 				}
 			}
 		}
-		for _, mappedStockMovement := range mappedStockMovements {
-			fmt.Printf("%v \n", mappedStockMovement)
-		}
+
 		if err := tx.Omit(clause.Associations).CreateInBatches(mappedStockMovements, 500).Error; err != nil {
 			return err
 		}
