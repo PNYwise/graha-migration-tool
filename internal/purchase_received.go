@@ -2,11 +2,13 @@ package internal
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type PurchaseReceivedEntity struct {
@@ -19,7 +21,7 @@ type PurchaseReceivedEntity struct {
 	Date                   string                        `gorm:"type:date;not null"`
 	LocationId             uint                          `gorm:"not null"`
 	SupplierId             uint                          `gorm:"not null"`
-	PurchaseReceivedItems  *[]PurchaseReceivedItemEntity `gorm:"-"`
+	PurchaseReceivedItems  *[]PurchaseReceivedItemEntity `gorm:"foreignKey:PurchaseReceivedId;->"`
 	CreatedBy              int                           `gorm:"column:createdBy;not null"`
 }
 
@@ -59,7 +61,7 @@ func NewPurchaseReceivedRepository(db *gorm.DB) IPurchaseReceivedRepository {
 // CreateBatch implements IPurchaseReceivedRepository.
 func (p *purchaseReceivedRepository) CreateBatch(purchaseReceiveds []PurchaseReceivedEntity) error {
 	err := p.db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.CreateInBatches(&purchaseReceiveds, 500).Error; err != nil {
+		if err := tx.Omit(clause.Associations).CreateInBatches(purchaseReceiveds, 500).Error; err != nil {
 			return err
 		}
 
@@ -68,34 +70,32 @@ func (p *purchaseReceivedRepository) CreateBatch(purchaseReceiveds []PurchaseRec
 			return err
 		}
 
-		var purchaseReceivedItems []PurchaseReceivedItemEntity
+		var mappedPurchaseReceivedItems []PurchaseReceivedItemEntity
 		var stocks []StockEntity
 		var consignments []ConsignmentEntity
 		for i, purchaseReceived := range purchaseReceiveds {
-
 			var consignmentItems []ConsignmentItemEntity
 			var total int
 			if purchaseReceived.PurchaseReceivedItems != nil {
-				for _, purchaseReceivedItem := range *purchaseReceived.PurchaseReceivedItems {
+				purchaseReceivedItems := *purchaseReceived.PurchaseReceivedItems
+				for _, purchaseReceivedItem := range purchaseReceivedItems {
 					purchaseReceivedItem.PurchaseReceivedId = purchaseReceived.ID
-					purchaseReceivedItems = append(purchaseReceivedItems, purchaseReceivedItem)
+					mappedPurchaseReceivedItems = append(mappedPurchaseReceivedItems, purchaseReceivedItem)
 					if purchaseReceivedItem.Product != nil {
-						product := purchaseReceivedItem.Product
-						if product != nil {
-							stock := product.Stock
-							stocks = append(stocks, *stock)
-							consignmentItem := ConsignmentItemEntity{
-								Qty:               product.StockET,
-								BuyPrice:          int(product.BuyPrice),
-								DiscountInValue:   0,
-								DiscountInPercent: 0,
-								SubTotal:          product.StockET * int(product.BuyPrice),
-								ProductId:         product.ID,
-								CreatedBy:         1,
-							}
-							total += consignmentItem.SubTotal
-							consignmentItems = append(consignmentItems, consignmentItem)
+						product := *purchaseReceivedItem.Product
+						stock := *product.Stock
+						stocks = append(stocks, stock)
+						consignmentItem := ConsignmentItemEntity{
+							Qty:               product.StockET,
+							BuyPrice:          int(product.BuyPrice),
+							DiscountInValue:   0,
+							DiscountInPercent: 0,
+							SubTotal:          product.StockET * int(product.BuyPrice),
+							ProductId:         product.ID,
+							CreatedBy:         1,
 						}
+						total += consignmentItem.SubTotal
+						consignmentItems = append(consignmentItems, consignmentItem)
 					}
 				}
 			}
@@ -114,24 +114,25 @@ func (p *purchaseReceivedRepository) CreateBatch(purchaseReceiveds []PurchaseRec
 			}
 			consignments = append(consignments, consignment)
 		}
-		if err := tx.CreateInBatches(&purchaseReceivedItems, 500).Error; err != nil {
+		if err := tx.Omit(clause.Associations).CreateInBatches(mappedPurchaseReceivedItems, 500).Error; err != nil {
 			return err
 		}
 
-		if err := tx.CreateInBatches(&consignments, 500).Error; err != nil {
+		if err := tx.Omit(clause.Associations).CreateInBatches(consignments, 500).Error; err != nil {
 			return err
 		}
 
-		var consignmentItems []ConsignmentItemEntity
+		var mappedConsignmentItems []ConsignmentItemEntity
 		for _, consignment := range consignments {
 			if consignment.ConsignmentItems != nil {
-				for _, consignmentItem := range *consignment.ConsignmentItems {
+				consignmentItems := *consignment.ConsignmentItems
+				for _, consignmentItem := range consignmentItems {
 					consignmentItem.ConsignmentId = consignment.ID
-					consignmentItems = append(consignmentItems, consignmentItem)
+					mappedConsignmentItems = append(mappedConsignmentItems, consignmentItem)
 				}
 			}
 		}
-		if err := tx.CreateInBatches(&consignmentItems, 500).Error; err != nil {
+		if err := tx.Omit(clause.Associations).CreateInBatches(mappedConsignmentItems, 500).Error; err != nil {
 			return err
 		}
 		locations := new([]LocationEntity)
@@ -148,38 +149,41 @@ func (p *purchaseReceivedRepository) CreateBatch(purchaseReceiveds []PurchaseRec
 			return errors.New("location not found")
 		}
 		var mappedStockMovements []StockMovementEntity
-		for _, purchaseReceivedItem := range purchaseReceivedItems {
+		for _, purchaseReceivedItem := range mappedPurchaseReceivedItems {
+			purchaseReceivedItemId := purchaseReceivedItem.ID
 			if purchaseReceivedItem.Product != nil {
-				product := purchaseReceivedItem.Product
+				product := *purchaseReceivedItem.Product
 				if product.StockET > 0 {
-					if product.StockMovements != nil && len(*product.StockMovements) > 0 {
-						etStockMovement := find(*product.StockMovements, func(stockMovement StockMovementEntity) bool {
+					if product.StockMovements != nil {
+						stockMovements := *product.StockMovements
+						etStockMovement := find(stockMovements, func(stockMovement StockMovementEntity) bool {
 							return stockMovement.LocationId == etLoc.ID
 						})
 						if etStockMovement != nil {
-							etStockMovement.PurchaseReceivedItemId = purchaseReceivedItem.ID
+							etStockMovement.PurchaseReceivedItemId = &purchaseReceivedItemId
 							etStockMovement.Qty = product.StockET
 							etStockMovement.QtyAfterUpdate = product.StockET
-							if err := tx.Save(etStockMovement).Error; err != nil {
+							if err := tx.Omit(clause.Associations).Save(etStockMovement).Error; err != nil {
 								return err
 							}
 						} else {
-							etStockMovement := StockMovementEntity{
+							etStockMovement = &StockMovementEntity{
 								Code:                   "BM",
 								Qty:                    product.StockET,
 								QtyBeforeUpdate:        0,
 								QtyAfterUpdate:         product.StockET,
 								ProductId:              product.ID,
 								LocationId:             etLoc.ID,
-								PurchaseReceivedItemId: purchaseReceivedItem.ID,
+								PurchaseReceivedItemId: &purchaseReceivedItemId,
 							}
-							mappedStockMovements = append(mappedStockMovements, etStockMovement)
+							fmt.Printf("1 %v \n", etStockMovement)
+							mappedStockMovements = append(mappedStockMovements, *etStockMovement)
 						}
-						gdStockMovement := find(*product.StockMovements, func(stockMovement StockMovementEntity) bool {
+						gdStockMovement := find(stockMovements, func(stockMovement StockMovementEntity) bool {
 							return stockMovement.LocationId == gdLoc.ID
 						})
 						if gdStockMovement != nil {
-							if err := tx.Delete(gdStockMovement).Error; err != nil {
+							if err := tx.Omit(clause.Associations).Delete(gdStockMovement).Error; err != nil {
 								return err
 							}
 						}
@@ -191,15 +195,18 @@ func (p *purchaseReceivedRepository) CreateBatch(purchaseReceiveds []PurchaseRec
 							QtyAfterUpdate:         product.StockET,
 							ProductId:              product.ID,
 							LocationId:             etLoc.ID,
-							PurchaseReceivedItemId: purchaseReceivedItem.ID,
+							PurchaseReceivedItemId: &purchaseReceivedItemId,
 						}
+						fmt.Printf("2 %v \n", etStockMovement)
 						mappedStockMovements = append(mappedStockMovements, etStockMovement)
 					}
 				}
-
 			}
 		}
-		if err := tx.CreateInBatches(&mappedStockMovements, 500).Error; err != nil {
+		for _, mappedStockMovement := range mappedStockMovements {
+			fmt.Printf("%v \n", mappedStockMovement)
+		}
+		if err := tx.Omit(clause.Associations).CreateInBatches(mappedStockMovements, 500).Error; err != nil {
 			return err
 		}
 
@@ -207,7 +214,7 @@ func (p *purchaseReceivedRepository) CreateBatch(purchaseReceiveds []PurchaseRec
 			return stock.ID != 0
 		})
 		for i := range stockForUpdate {
-			if err := tx.Save(stockForUpdate[i]).Error; err != nil {
+			if err := tx.Omit(clause.Associations).Save(stockForUpdate[i]).Error; err != nil {
 				return err
 			}
 		}
@@ -215,7 +222,7 @@ func (p *purchaseReceivedRepository) CreateBatch(purchaseReceiveds []PurchaseRec
 		stockForCreate := filter(stocks, func(stock StockEntity) bool {
 			return stock.ID == 0
 		})
-		if err := tx.CreateInBatches(&stockForCreate, 500).Error; err != nil {
+		if err := tx.Omit(clause.Associations).CreateInBatches(stockForCreate, 500).Error; err != nil {
 			return err
 		}
 
@@ -223,7 +230,7 @@ func (p *purchaseReceivedRepository) CreateBatch(purchaseReceiveds []PurchaseRec
 			if stockForUpdate.StockDistributions != nil {
 				for _, stockDistribution := range *stockForUpdate.StockDistributions {
 					stockDistribution.StockId = stockForUpdate.ID
-					if err := tx.Save(stockDistribution).Error; err != nil {
+					if err := tx.Omit(clause.Associations).Save(stockDistribution).Error; err != nil {
 						return err
 					}
 				}
@@ -238,7 +245,7 @@ func (p *purchaseReceivedRepository) CreateBatch(purchaseReceiveds []PurchaseRec
 				}
 			}
 		}
-		if err := tx.CreateInBatches(&stockDistributionForCreate, 500).Error; err != nil {
+		if err := tx.Omit(clause.Associations).CreateInBatches(stockDistributionForCreate, 500).Error; err != nil {
 			return err
 		}
 

@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type StockEntity struct {
@@ -14,7 +15,7 @@ type StockEntity struct {
 	Qty            int
 	ProductId      uint `gorm:"not null"`
 
-	StockDistributions *[]StockDistributionEntity `gorm:"foreignKey:StockId"`
+	StockDistributions *[]StockDistributionEntity `gorm:"foreignKey:StockId;->"`
 }
 
 func (StockEntity) TableName() string {
@@ -44,7 +45,7 @@ type StockMovementEntity struct {
 	QtyAfterUpdate         int    `gorm:"not null"`
 	ProductId              uint   `gorm:"not null"`
 	LocationId             uint   `gorm:"not null"`
-	PurchaseReceivedItemId uint
+	PurchaseReceivedItemId *uint
 }
 
 func (StockMovementEntity) TableName() string {
@@ -67,14 +68,14 @@ func NewStockRepository(db *gorm.DB) IStockRepository {
 
 func (s *stockRepository) CreateBatch(stocks []StockEntity) error {
 	err := s.db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.CreateInBatches(&stocks, 500).Error; err != nil {
+		if err := tx.Omit(clause.Associations).CreateInBatches(&stocks, 500).Error; err != nil {
 			return err
 		}
 		var batchOfStockDistributions []StockDistributionEntity
 		var stockMovements []StockMovementEntity
 		for _, stock := range stocks {
-			stockDistributions := stock.StockDistributions
-			for _, stockDistribution := range *stockDistributions {
+			stockDistributions := *stock.StockDistributions
+			for _, stockDistribution := range stockDistributions {
 				stockDistribution.StockId = stock.ID
 
 				if stockDistribution.Qty != 0 {
@@ -92,10 +93,10 @@ func (s *stockRepository) CreateBatch(stocks []StockEntity) error {
 			}
 		}
 
-		if err := tx.CreateInBatches(batchOfStockDistributions, 1000).Error; err != nil {
+		if err := tx.Omit(clause.Associations).CreateInBatches(batchOfStockDistributions, 1000).Error; err != nil {
 			return err
 		}
-		if err := tx.CreateInBatches(stockMovements, 1000).Error; err != nil {
+		if err := tx.Omit(clause.Associations).CreateInBatches(stockMovements, 1000).Error; err != nil {
 			return err
 		}
 		return nil

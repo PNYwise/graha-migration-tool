@@ -45,6 +45,17 @@ func (c *consignmentService) Process(fileName string) {
 	//get product from xlsx
 	xlsxProducts := c.getProductFromXlsx(xlsx)
 
+	var filteredXlsxProducts []internal.ProductEntity
+	for _, xlsxProduct := range xlsxProducts {
+		existingProduct := helper.Find(filteredXlsxProducts, func(filteredProduct internal.ProductEntity) bool {
+			return filteredProduct.Code == xlsxProduct.Code
+		})
+		if existingProduct != nil {
+			existingProduct.StockET += xlsxProduct.StockET
+		} else {
+			filteredXlsxProducts = append(filteredXlsxProducts, xlsxProduct)
+		}
+	}
 	//get location
 	dbLocations, err := c.locationRepository.FindAll()
 	if err != nil {
@@ -64,7 +75,7 @@ func (c *consignmentService) Process(fileName string) {
 
 	var productCodes []string
 	var supplierCodes []string
-	for _, xlsxProduct := range xlsxProducts {
+	for _, xlsxProduct := range filteredXlsxProducts {
 		productCodes = append(productCodes, xlsxProduct.Code)
 		supplierCodes = append(supplierCodes, xlsxProduct.SupplierCode)
 	}
@@ -85,7 +96,7 @@ func (c *consignmentService) Process(fileName string) {
 	var notfoundProductCodes []string
 	var notfoundSupplierCodes []string
 
-	for _, xlsxProduct := range xlsxProducts {
+	for _, xlsxProduct := range filteredXlsxProducts {
 		dbProduct := helper.Find(*dbProducts, func(dbProduct internal.ProductEntity) bool {
 			return dbProduct.Code == xlsxProduct.Code
 		})
@@ -159,7 +170,7 @@ func (c *consignmentService) Process(fileName string) {
 		mappedSupplier := helper.Find(mappedSuppliers, func(mappedSupplier internal.SupplierEntity) bool {
 			return mappedSupplier.Code == xlsxProduct.SupplierCode
 		})
-		if mappedSupplier != nil && xlsxProduct.SupplierCode == mappedSupplier.Code {
+		if mappedSupplier != nil {
 			*mappedSupplier.Products = append(*mappedSupplier.Products, *dbProduct)
 		} else {
 			newSupplier := internal.SupplierEntity{
@@ -176,14 +187,15 @@ func (c *consignmentService) Process(fileName string) {
 	for i, mappedSupplier := range mappedSuppliers {
 
 		var purchaseReceivedItems []internal.PurchaseReceivedItemEntity
-		for _, product := range *mappedSupplier.Products {
-			purchaseReceivedItem := internal.PurchaseReceivedItemEntity{
-				QtyRequest:  product.StockET,
-				QtyReceived: product.StockET,
-				ProductId:   product.ID,
-				Product:     &product,
+		products := *mappedSupplier.Products
+		for i := range products {
+			purchaseReceivedItem := &internal.PurchaseReceivedItemEntity{
+				QtyRequest:  products[i].StockET,
+				QtyReceived: products[i].StockET,
+				ProductId:   products[i].ID,
+				Product:     &products[i],
 			}
-			purchaseReceivedItems = append(purchaseReceivedItems, purchaseReceivedItem)
+			purchaseReceivedItems = append(purchaseReceivedItems, *purchaseReceivedItem)
 		}
 		purchaseReceived := internal.PurchaseReceivedEntity{
 			Code:                   "ET/CN20240507" + helper.PadStart(strconv.Itoa(i+1), "0", 4),

@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type ProductEntity struct {
@@ -20,8 +21,8 @@ type ProductEntity struct {
 	UomId          uint                   `gorm:"not null"`
 	CategoryId     uint                   `gorm:"not null"`
 	BrandId        uint                   `gorm:"not null"`
-	Stock          *StockEntity           `gorm:"foreignKey:ProductId"`
-	StockMovements *[]StockMovementEntity `gorm:"foreignKey:ProductId"`
+	Stock          *StockEntity           `gorm:"foreignKey:ProductId;->"`
+	StockMovements *[]StockMovementEntity `gorm:"foreignKey:ProductId;->"`
 	StockGD        int                    `gorm:"-"`
 	StockET        int                    `gorm:"-"`
 	Total          int                    `gorm:"-"`
@@ -85,7 +86,7 @@ func (c *productRepository) FindByCodes(codes []string) (*[]ProductEntity, error
 
 func (p *productRepository) CreateBatch(products []ProductEntity) error {
 	err := p.db.Transaction(func(tx *gorm.DB) error {
-		tx.CreateInBatches(products, 1000)
+		tx.Omit(clause.Associations).CreateInBatches(products, 1000)
 		return nil
 	})
 	if err != nil {
