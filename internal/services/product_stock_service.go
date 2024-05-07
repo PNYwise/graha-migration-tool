@@ -2,7 +2,9 @@ package services
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/360EntSecGroup-Skylar/excelize"
 	"github.com/PNYwise/graha-migration-tool/internal"
@@ -137,8 +139,10 @@ func (p *productStockService) getProductFromXlsx(xlsx *excelize.File) []internal
 			if err != nil {
 				panic(err)
 			}
+			re := regexp.MustCompile(`\s+`)
+			name := strings.TrimSpace(re.ReplaceAllString(row[0], " "))
 			product := internal.ProductEntity{
-				Name:    row[0],
+				Name:    name,
 				StockGD: stockGd,
 				StockET: stockEt,
 				Total:   total,
