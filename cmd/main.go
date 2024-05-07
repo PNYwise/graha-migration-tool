@@ -64,14 +64,16 @@ func main() {
 	stockRepo := internal.NewStockRepository(internal.DB.Db)
 	supplierRepo := internal.NewSupplierRepository(internal.DB.Db)
 	purchaseReceivedRepo := internal.NewPurchaseReceivedRepository(internal.DB.Db)
-
+	customerRepo := internal.NewCustomerRepository(internal.DB.Db)
+	_ = customerRepo
 	// service
 	productMigrationService := services.NewProductMigrationService(categoryRepo, brandRepo, productRepo)
 	productStockService := services.NewProductStockService(productRepo, locationRepo, stockRepo)
-	consignmentService := services.NewConsignmentService(productRepo, locationRepo, supplierRepo,purchaseReceivedRepo)
+	consignmentService := services.NewConsignmentService(productRepo, locationRepo, supplierRepo, purchaseReceivedRepo)
+	customerDeptService := services.NewCustomerDeptServiceService()
 
 	// handler
-	handler := handler.NewHandler(productMigrationService, productStockService, consignmentService,)
+	handler := handler.NewHandler(productMigrationService, productStockService, consignmentService, customerDeptService)
 
 	// routes
 	app.Get("/", renderTemplate)

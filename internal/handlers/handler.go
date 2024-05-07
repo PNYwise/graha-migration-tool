@@ -12,14 +12,16 @@ type Handler struct {
 	productMigrationService services.IProductMigrationService
 	productStockService     services.IProductStockService
 	consignmentService      services.IConsignmentService
+	customerDeptService     services.ICustomerDeptService
 }
 
 func NewHandler(
 	productMigrationService services.IProductMigrationService,
 	productStockService services.IProductStockService,
 	consignmentService services.IConsignmentService,
+	customerDeptService services.ICustomerDeptService,
 ) *Handler {
-	return &Handler{productMigrationService, productStockService, consignmentService}
+	return &Handler{productMigrationService, productStockService, consignmentService, customerDeptService}
 }
 
 func (h *Handler) Execute(c *fiber.Ctx) error {
@@ -45,6 +47,8 @@ func (h *Handler) Execute(c *fiber.Ctx) error {
 		go h.productStockService.Process(file.Filename)
 	case "product-consignment":
 		go h.consignmentService.Process(file.Filename)
+	case "customer-dept":
+		go h.customerDeptService.Process(file.Filename)
 	}
 	return c.Redirect("/")
 }
