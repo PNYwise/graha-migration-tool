@@ -60,7 +60,7 @@ func (p *productStockService) Process(fileName string) {
 		return dbLocation.Alias == "ET"
 	})
 	dbGd := helper.Find(*dbLocations, func(dbLocation internal.LocationEntity) bool {
-		return dbLocation.Alias == "GD"
+		return dbLocation.Alias == "G1"
 	})
 	if dbEt == nil || dbGd == nil {
 		fmt.Println("et/gd are not found")

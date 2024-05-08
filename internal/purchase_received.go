@@ -142,7 +142,7 @@ func (p *purchaseReceivedRepository) CreateBatch(purchaseReceiveds []PurchaseRec
 			return location.Alias == "ET"
 		})
 		gdLoc := find(*locations, func(location LocationEntity) bool {
-			return location.Alias == "GD"
+			return location.Alias == "G1"
 		})
 		if etLoc == nil || gdLoc == nil {
 			return errors.New("location not found")
